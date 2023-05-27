@@ -66,35 +66,12 @@ export default class MyPlugin extends Plugin {
 
 				try {
 					const fileContent = await this.app.vault.read(file);
-
-					// Retrieving the YAML frontmatter block
-					const frontMatterMatch = this.frontMatterRegex.exec(fileContent);
-					const frontMatterContent = frontMatterMatch?.groups?.frontmatter || null;
-
-					// Parsing an existing YAML frontmatter
-					const frontMatterData = frontMatterContent && parseYaml(frontMatterContent) || {};
+					const frontMatterData = this.parseFrontMatter(fileContent);
 
 					// Updating aliases in frontMatterData
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData);
 
-					// Convert the updated frontMatter data back to the YAML format
-					const updatedFrontMatterContent = stringifyYaml(frontMatterData);
-
-					// Generate the updated content of the file with the changed frontmatter
-					let updatedFileContent;
-					if (frontMatterMatch) {
-						// Replace the existing frontmatter with the updated frontmatter content
-						updatedFileContent = fileContent.replace(
-							this.frontMatterRegex,
-							`---\n${updatedFrontMatterContent}---`
-						);
-					} else {
-						// Add a new frontmatter block at the beginning of the file
-						updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
-					}
-
-					// Save the updated file content
-					await this.app.vault.modify(file, updatedFileContent);
+					await this.saveFrontMatter(file, fileContent, frontMatterData);
 
 					// Trigger the necessary workspace actions
 					await this.app.workspace.trigger('file-menu:sync-vault');
@@ -138,24 +115,59 @@ export default class MyPlugin extends Plugin {
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
+	private parseFrontMatter(fileContent: string) {
+		// Retrieving the YAML frontmatter block
+		const frontMatterMatch = this.frontMatterRegex.exec(fileContent);
+		const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
+
+		// Parsing an existing YAML frontmatter
+		const frontMatterData = parseYaml(frontMatterContent) || {};
+		return frontMatterData;
+	}
+
 	private async getUpdatedAliases(noteName: string, frontMatterData: any) {
-		const inflections = await this.getInflections(noteName);
+		let inflectionGroups = {};
+		const inflections: string[] = [];
 		// Get the array of existing aliases from the frontmatter data
-		const existingAliases = parseFrontMatterAliases(frontMatterData) || [];
+		const originalAliases = parseFrontMatterAliases(frontMatterData) || [];
+		const originalNames = [noteName, ...originalAliases]
 
 		// Check if any of the existing aliases need to be updated
-		const aliasesToUpdate = [];
-		for (const alias of existingAliases) {
+		for (const alias of originalNames) {
 			if (!inflections.includes(alias)) {
-				aliasesToUpdate.push(alias);
 				const aliasInflections = await this.getInflections(alias);
+				inflectionGroups = {
+					...inflectionGroups,
+					[alias]: await this.getInflections(alias),
+				}
 				inflections.push(...aliasInflections);
 			}
 		}
 
-		// Combine existing aliases with new inflections
-		const updatedAliases = [...new Set([...existingAliases, ...(inflections)])];
-		return updatedAliases;
+		let nominativeNames = Object.keys(inflectionGroups).slice(1);
+		let inflectedNames = Object.values(inflectionGroups).flat();
+		return [...nominativeNames, ...inflectedNames];
+	}
+
+	private async saveFrontMatter(file: TFile, fileContent: string, frontMatterData: any) {
+		// Convert the updated frontMatter data back to the YAML format
+		const updatedFrontMatterContent = stringifyYaml(frontMatterData);
+
+		// Generate the updated content of the file with the changed frontmatter
+		let updatedFileContent;
+		if (this.frontMatterRegex.exec(fileContent)) {
+			// Replace the existing frontmatter with the updated frontmatter content
+			updatedFileContent = fileContent.replace(
+				this.frontMatterRegex,
+				`---\n${updatedFrontMatterContent}---`
+			);
+		} else {
+			// Add a new frontmatter block at the beginning of the file
+			updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
+		}
+
+		// Save the updated file content
+		await this.app.vault.modify(file, updatedFileContent);
 	}
 
 	onunload() {

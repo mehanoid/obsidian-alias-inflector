@@ -1,4 +1,7 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile} from 'obsidian';
+// const fm = require('front-matter');
+// import fm from 'front-matter';
+import { parseFrontMatterAliases, parseYaml, stringifyYaml } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -19,7 +22,7 @@ export default class MyPlugin extends Plugin {
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
 			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
+			new Notice('Hello, you! Пыщ пыщ!!!');
 		});
 		// Perform additional things with the ribbon
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
@@ -36,15 +39,35 @@ export default class MyPlugin extends Plugin {
 				new SampleModal(this.app).open();
 			}
 		});
-		// This adds an editor command that can perform some operation on the current editor instance
+
 		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
+			id: 'add-aliases-with-inflections',
+			name: 'Add aliases with inflections',
+			editorCallback: async (editor, view) => {
+				if (!view.file) {
+					return
+				}
+
+				const noteName = view.file.basename; // Get the name of the current note
+
+				try {
+					const inflections = await this.getInflections(noteName);
+
+					// Modify the frontmatter of the file to include the inflections
+					const filePath = view.file.path;
+					const file = this.app.vault.getAbstractFileByPath(filePath);
+					if (!file || !(file instanceof TFile)) {
+						console.error('Invalid file:', filePath);
+						return;
+					}
+					await this.saveInflections(file, inflections);
+				} catch (error) {
+					console.error('Error fetching inflections:', error);
+					new Notice('Error fetching inflections');
+				}
+			},
 		});
+
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
 		this.addCommand({
 			id: 'open-sample-modal-complex',
@@ -88,6 +111,77 @@ export default class MyPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	// Make an HTTP request to fetch the inflections
+	private async getInflections(noteName: string) {
+		return this.getInflectionsStub(noteName)
+
+		// // Construct the URL to fetch inflections
+		// const encodedNoteName = encodeURIComponent(noteName);
+		// const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
+		//
+		// const response = await fetch(url);
+		// const inflections = await response.json();
+		//
+		// // Extract the relevant inflections from the response
+		// const declensions = Object.values(inflections).filter(value => typeof value === 'string');
+		// return [...new Set(declensions)];
+	}
+
+	// Make an HTTP request to fetch the inflections
+	private getInflectionsStub(noteName: string) {
+		switch(noteName){
+			case "Василий Афанасьевич Пупкин":
+				return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];
+			case "Вася":
+				return ['Васи', 'Васе'];
+			default:
+				return ['кого-то', 'кому-то'];
+		}
+	}
+
+	async saveInflections(file: TFile, inflections: string[]) {
+	  const fileContent = await this.app.vault.read(file);
+
+	  // Retrieving the YAML frontmatter block
+	  const frontMatterRegex = /^---+\n(?<frontmatter>(?:.|\n)*)---+/um;
+	  const frontMatterMatch = frontMatterRegex.exec(fileContent);
+	  const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
+
+	  // Parsing an existing YAML frontmatter
+	  const frontMatterData = parseYaml(frontMatterContent) || {};
+
+	  // Get the array of existing aliases from the frontmatter data
+	  const existingAliases = parseFrontMatterAliases(frontMatterData) || [];
+
+	  // Combine existing aliases with new inflections
+	  const updatedAliases = [...new Set([...existingAliases, ...inflections])];
+
+	  // Updating aliases in frontMatterData
+	  frontMatterData.aliases = updatedAliases;
+
+	  // Convert the updated frontMatter data back to the YAML format
+	  const updatedFrontMatterContent = stringifyYaml(frontMatterData);
+
+	  // Generate the updated content of the file with the changed frontmatter
+	  let updatedFileContent;
+	  if (frontMatterMatch) {
+	    // Replace the existing frontmatter with the updated frontmatter content
+	    updatedFileContent = fileContent.replace(
+	      frontMatterRegex,
+	      `---\n${updatedFrontMatterContent}---`
+	    );
+	  } else {
+	    // Add a new frontmatter block at the beginning of the file
+	    updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
+	  }
+
+	  // Save the updated file content
+	  await this.app.vault.modify(file, updatedFileContent);
+
+	  // Trigger the necessary workspace actions
+	  this.app.workspace.trigger('file-menu:sync-vault');
 	}
 }
 

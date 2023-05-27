@@ -55,29 +55,24 @@ export default class MyPlugin extends Plugin {
 		this.addCommand({
 			id: 'add-aliases-with-inflections',
 			name: 'Add aliases with inflections',
+			// Modify the frontmatter of the file to include the inflections
 			editorCallback: async (editor, view) => {
-				if (!view.file) {
+				const file = view.file;
+				if (!file) {
 					return
 				}
 
-				const noteName = view.file.basename; // Get the name of the current note
+				const noteName = file.basename; // Get the name of the current note
 
 				try {
-					// Modify the frontmatter of the file to include the inflections
-					const filePath = view.file.path;
-					const file = this.app.vault.getAbstractFileByPath(filePath);
-					if (!file || !(file instanceof TFile)) {
-						console.error('Invalid file:', filePath);
-						return;
-					}
 					const fileContent = await this.app.vault.read(file);
 
 					// Retrieving the YAML frontmatter block
 					const frontMatterMatch = this.frontMatterRegex.exec(fileContent);
-					const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
+					const frontMatterContent = frontMatterMatch?.groups?.frontmatter || null;
 
 					// Parsing an existing YAML frontmatter
-					const frontMatterData = parseYaml(frontMatterContent) || {};
+					const frontMatterData = frontMatterContent && parseYaml(frontMatterContent) || {};
 
 					// Updating aliases in frontMatterData
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData);

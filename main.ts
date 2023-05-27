@@ -184,18 +184,18 @@ export default class MyPlugin extends Plugin {
 
 	// Make an HTTP request to fetch the inflections
 	private async getInflections(noteName: string) {
-		return this.getInflectionsStub(noteName)
+		// return this.getInflectionsStub(noteName)
 
-		// // Construct the URL to fetch inflections
-		// const encodedNoteName = encodeURIComponent(noteName);
-		// const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
-		//
-		// const response = await fetch(url);
-		// const inflections = await response.json();
-		//
-		// // Extract the relevant inflections from the response
-		// const declensions = Object.values(inflections).filter(value => typeof value === 'string');
-		// return [...new Set(declensions)];
+		// Construct the URL to fetch inflections
+		const encodedNoteName = encodeURIComponent(noteName);
+		const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
+
+		const response = await fetch(url);
+		const responseJson = await response.json();
+
+		// Extract the relevant inflections from the response
+		const inflections = Object.values(responseJson).filter(value => typeof value === 'string');
+		return [...new Set(inflections)];
 	}
 
 	// Make an HTTP request to fetch the inflections

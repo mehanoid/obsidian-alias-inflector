@@ -131,7 +131,7 @@ export default class MyPlugin extends Plugin {
 
 	// Make an HTTP request to fetch the inflections
 	private getInflectionsStub(noteName: string) {
-		switch(noteName){
+		switch (noteName) {
 			case "Василий Афанасьевич Пупкин":
 				return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];
 			case "Вася":
@@ -142,46 +142,56 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async saveInflections(file: TFile, inflections: string[]) {
-	  const fileContent = await this.app.vault.read(file);
+		const fileContent = await this.app.vault.read(file);
 
-	  // Retrieving the YAML frontmatter block
-	  const frontMatterRegex = /^---+\n(?<frontmatter>(?:.|\n)*)---+/um;
-	  const frontMatterMatch = frontMatterRegex.exec(fileContent);
-	  const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
+		// Retrieving the YAML frontmatter block
+		const frontMatterRegex = /^---+\n(?<frontmatter>(?:.|\n)*)---+/um;
+		const frontMatterMatch = frontMatterRegex.exec(fileContent);
+		const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
 
-	  // Parsing an existing YAML frontmatter
-	  const frontMatterData = parseYaml(frontMatterContent) || {};
+		// Parsing an existing YAML frontmatter
+		const frontMatterData = parseYaml(frontMatterContent) || {};
 
-	  // Get the array of existing aliases from the frontmatter data
-	  const existingAliases = parseFrontMatterAliases(frontMatterData) || [];
+		// Get the array of existing aliases from the frontmatter data
+		const existingAliases = parseFrontMatterAliases(frontMatterData) || [];
 
-	  // Combine existing aliases with new inflections
-	  const updatedAliases = [...new Set([...existingAliases, ...inflections])];
+		// Check if any of the existing aliases need to be updated
+		const aliasesToUpdate = [];
+		for (const alias of existingAliases) {
+			if (!inflections.includes(alias)) {
+				aliasesToUpdate.push(alias);
+				const aliasInflections = await this.getInflections(alias);
+				inflections.push(...aliasInflections);
+			}
+		}
 
-	  // Updating aliases in frontMatterData
-	  frontMatterData.aliases = updatedAliases;
+		// Combine existing aliases with new inflections
+		const updatedAliases = [...new Set([...existingAliases, ...inflections])];
 
-	  // Convert the updated frontMatter data back to the YAML format
-	  const updatedFrontMatterContent = stringifyYaml(frontMatterData);
+		// Updating aliases in frontMatterData
+		frontMatterData.aliases = updatedAliases;
 
-	  // Generate the updated content of the file with the changed frontmatter
-	  let updatedFileContent;
-	  if (frontMatterMatch) {
-	    // Replace the existing frontmatter with the updated frontmatter content
-	    updatedFileContent = fileContent.replace(
-	      frontMatterRegex,
-	      `---\n${updatedFrontMatterContent}---`
-	    );
-	  } else {
-	    // Add a new frontmatter block at the beginning of the file
-	    updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
-	  }
+		// Convert the updated frontMatter data back to the YAML format
+		const updatedFrontMatterContent = stringifyYaml(frontMatterData);
 
-	  // Save the updated file content
-	  await this.app.vault.modify(file, updatedFileContent);
+		// Generate the updated content of the file with the changed frontmatter
+		let updatedFileContent;
+		if (frontMatterMatch) {
+			// Replace the existing frontmatter with the updated frontmatter content
+			updatedFileContent = fileContent.replace(
+				frontMatterRegex,
+				`---\n${updatedFrontMatterContent}---`
+			);
+		} else {
+			// Add a new frontmatter block at the beginning of the file
+			updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
+		}
 
-	  // Trigger the necessary workspace actions
-	  this.app.workspace.trigger('file-menu:sync-vault');
+		// Save the updated file content
+		await this.app.vault.modify(file, updatedFileContent);
+
+		// Trigger the necessary workspace actions
+		this.app.workspace.trigger('file-menu:sync-vault');
 	}
 }
 

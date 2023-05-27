@@ -70,6 +70,7 @@ export default class MyPlugin extends Plugin {
 
 					// Updating aliases in frontMatterData
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData);
+					frontMatterData.inflected = true;
 
 					await this.saveFrontMatter(file, fileContent, frontMatterData);
 
@@ -121,8 +122,7 @@ export default class MyPlugin extends Plugin {
 		const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
 
 		// Parsing an existing YAML frontmatter
-		const frontMatterData = parseYaml(frontMatterContent) || {};
-		return frontMatterData;
+		return parseYaml(frontMatterContent) || {};
 	}
 
 	private async getUpdatedAliases(noteName: string, frontMatterData: any) {

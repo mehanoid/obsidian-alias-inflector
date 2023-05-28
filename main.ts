@@ -194,11 +194,18 @@ export default class MyPlugin extends Plugin {
 		const responseJson = await response.json();
 
 		// Extract the relevant inflections from the response
-		const inflections = Object.values(responseJson).filter(value => typeof value === 'string');
+		const inflections =
+			[responseJson, responseJson["множественное"]]
+				.map(json => this.extractStringValues(json))
+				.flat()
 		return [...new Set(inflections)];
 	}
 
-	// Make an HTTP request to fetch the inflections
+	private extractStringValues(json: any): string[] {
+		if (!json) return [];
+		return Object.values(json).filter(value => typeof value === 'string') as string[];
+	}
+
 	private getInflectionsStub(noteName: string) {
 		switch (noteName) {
 			case "Василий Афанасьевич Пупкин":

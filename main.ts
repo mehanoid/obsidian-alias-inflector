@@ -70,7 +70,7 @@ export default class MyPlugin extends Plugin {
 
 					// Updating aliases in frontMatterData
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData);
-					frontMatterData.inflected = true;
+					// frontMatterData.inflected = true;
 
 					await this.saveFrontMatter(file, fileContent, frontMatterData);
 

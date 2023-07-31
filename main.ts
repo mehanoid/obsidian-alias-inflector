@@ -85,19 +85,18 @@ export default class MyPlugin extends Plugin {
 	}
 
 	private async getUpdatedAliases(noteName: string, frontMatterData: any) {
-		let inflectionGroups = {};
+		let inflectionGroups: { [key: string]: string[] } = {};
 		const inflections: string[] = [];
 		// Get the array of existing aliases from the frontmatter data
 		const originalAliases = parseFrontMatterAliases(frontMatterData) || [];
 		const originalNames = [noteName, ...originalAliases]
 
-		// Check if any of the existing aliases need to be updated
 		for (const alias of originalNames) {
 			if (!inflections.includes(alias)) {
 				const aliasInflections = await this.getInflections(alias);
 				inflectionGroups = {
 					...inflectionGroups,
-					[alias]: await this.getInflections(alias),
+					[alias]: aliasInflections,
 				}
 				inflections.push(...aliasInflections);
 			}
@@ -105,7 +104,11 @@ export default class MyPlugin extends Plugin {
 
 		let nominativeNames = Object.keys(inflectionGroups).slice(1);
 		let inflectedNames = Object.values(inflectionGroups).flat();
-		return [...nominativeNames, ...inflectedNames];
+		return this.getUniqueValues([...nominativeNames, ...inflectedNames].filter(a => a !== noteName));
+	}
+
+	private getUniqueValues(array: string[]): string[] {
+	    return array.filter((value, index, self) => self.indexOf(value) === index);
 	}
 
 	private async saveFrontMatter(file: TFile, fileContent: string, frontMatterData: any) {

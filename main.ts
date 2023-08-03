@@ -2,7 +2,6 @@
 // import fm from 'front-matter';
 import {
 	App,
-	MarkdownView,
 	Modal,
 	Notice,
 	parseFrontMatterAliases,
@@ -34,13 +33,18 @@ export default class MyPlugin extends Plugin {
 		this.addCommand({
 			id: 'add-aliases-with-inflections',
 			name: 'Add aliases with inflections',
-			// Modify the frontmatter of the file to include the inflections
 			editorCallback: async (editor, view) => {
 				const file = view.file;
 				if (!file) {
-					return
+					return;
 				}
 
+				const modal = new AddAliasesModal(this.app);
+				modal.open();
+
+				const {includePlural} = await modal.results;
+
+				// Execute your command
 				const noteName = file.basename; // Get the name of the current note
 
 				try {
@@ -48,7 +52,7 @@ export default class MyPlugin extends Plugin {
 					const frontMatterData = this.parseFrontMatter(fileContent);
 
 					// Updating aliases in frontMatterData
-					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData);
+					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {includePlural});
 					// frontMatterData.inflected = true;
 
 					await this.saveFrontMatter(file, fileContent, frontMatterData);
@@ -65,14 +69,14 @@ export default class MyPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		// // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
+		// // Using this function will automatically remove the event listener when this plugin is disabled.
+		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+		// 	console.log('click', evt);
+		// });
+		//
+		// // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
+		// this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	private parseFrontMatter(fileContent: string) {
@@ -84,7 +88,7 @@ export default class MyPlugin extends Plugin {
 		return parseYaml(frontMatterContent) || {};
 	}
 
-	private async getUpdatedAliases(noteName: string, frontMatterData: any) {
+	private async getUpdatedAliases(noteName: string, frontMatterData: any, options: any) {
 		let inflectionGroups: { [key: string]: string[] } = {};
 		const inflections: string[] = [];
 		// Get the array of existing aliases from the frontmatter data
@@ -93,7 +97,7 @@ export default class MyPlugin extends Plugin {
 
 		for (const alias of originalNames) {
 			if (!inflections.includes(alias)) {
-				const aliasInflections = await this.getInflections(alias);
+				const aliasInflections = await this.getInflections(alias, options);
 				inflectionGroups = {
 					...inflectionGroups,
 					[alias]: aliasInflections,
@@ -108,7 +112,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	private getUniqueValues(array: string[]): string[] {
-	    return array.filter((value, index, self) => self.indexOf(value) === index);
+		return array.filter((value, index, self) => self.indexOf(value) === index);
 	}
 
 	private async saveFrontMatter(file: TFile, fileContent: string, frontMatterData: any) {
@@ -145,22 +149,50 @@ export default class MyPlugin extends Plugin {
 	}
 
 	// Make an HTTP request to fetch the inflections
-	private async getInflections(noteName: string) {
+	private async getInflections(noteName: string, {includePlural}: any) {
 		// return this.getInflectionsStub(noteName)
 
 		// Construct the URL to fetch inflections
+		const responseJson = await this.httpGetMorpher(noteName);
+		// const responseJson = await this.httpGetMorpherStub(noteName);
+		const inflectionsData = [
+			responseJson,
+			(includePlural ? responseJson["множественное"] : null),
+		]
+
+		// Extract the relevant inflections from the response
+		const inflections =
+			inflectionsData
+				.filter(v => !!v)
+				.map(json => this.extractStringValues(json))
+				.flat()
+		return [...new Set(inflections)];
+	}
+
+	private async httpGetMorpher(noteName: string) {
 		const encodedNoteName = encodeURIComponent(noteName);
 		const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
 
 		const response = await fetch(url);
-		const responseJson = await response.json();
+		return await response.json();
+	}
 
-		// Extract the relevant inflections from the response
-		const inflections =
-			[responseJson, responseJson["множественное"]]
-				.map(json => this.extractStringValues(json))
-				.flat()
-		return [...new Set(inflections)];
+	private async httpGetMorpherStub(noteName: string) {
+		return Promise.resolve({
+		  "Р": "стола",
+		  "Д": "столу",
+		  "В": "стол",
+		  "Т": "столом",
+		  "П": "столе",
+		  "множественное": {
+		    "И": "столы",
+		    "Р": "столов",
+		    "Д": "столам",
+		    "В": "столы",
+		    "Т": "столами",
+		    "П": "столах"
+		  }
+		})
 	}
 
 	private extractStringValues(json: any): string[] {
@@ -174,9 +206,51 @@ export default class MyPlugin extends Plugin {
 				return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];
 			case "Вася":
 				return ['Васи', 'Васе'];
+			case "стол":
+				return ['стола', 'столу'];
 			default:
 				return ['кого-то', 'кому-то'];
 		}
+	}
+}
+
+class AddAliasesModal extends Modal {
+	results: Promise<{includePlural: boolean}>;
+	resolver: (value: {includePlural: boolean}) => void;
+
+	constructor(app: App) {
+		super(app);
+		this.results = new Promise((resolve) => this.resolver = resolve);
+	}
+
+	onOpen() {
+		let {contentEl} = this;
+
+		contentEl.empty();
+
+		let formEl = contentEl.createEl('form');
+
+		let divEl = formEl.createEl('div', { cls: 'setting-item' });
+
+		let checkboxLabel = divEl.createEl('label');
+		let checkbox = checkboxLabel.createEl('input', { attr: { type: 'checkbox', checked: true } });
+		checkboxLabel.appendText(' Plural');
+
+		// Create setting-item wrapper div
+		let buttonWrapper = formEl.createEl('div', { cls: 'setting-item' });
+
+		// Create button inside the wrapper
+		let okButton = buttonWrapper.createEl('button', { text: 'OK', cls: 'mod-cta' });
+		okButton.addEventListener('click', (e) => {
+			e.preventDefault();
+			this.resolver({ includePlural: checkbox.checked });
+			this.close();
+		});
+	}
+
+	onClose() {
+		let {contentEl} = this;
+		contentEl.empty();
 	}
 }
 

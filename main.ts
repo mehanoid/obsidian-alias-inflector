@@ -55,10 +55,16 @@ export default class MyPlugin extends Plugin {
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {includePlural});
 					// frontMatterData.inflected = true;
 
-					await this.saveFrontMatter(file, fileContent, frontMatterData);
+					const wasUpdated = await this.saveFrontMatter(file, fileContent, frontMatterData);
 
 					// Trigger the necessary workspace actions
 					await this.app.workspace.trigger('file-menu:sync-vault');
+
+					if (wasUpdated) {
+						new Notice('Aliases updated');
+					} else {
+						new Notice('Aliases are already inflected');
+					}
 				} catch (error) {
 					console.error('Error fetching inflections:', error);
 					new Notice('Error fetching inflections');
@@ -134,6 +140,8 @@ export default class MyPlugin extends Plugin {
 
 		// Save the updated file content
 		await this.app.vault.modify(file, updatedFileContent);
+		// Return true if any content was updated
+		return fileContent !== updatedFileContent
 	}
 
 	onunload() {
@@ -173,7 +181,7 @@ export default class MyPlugin extends Plugin {
 		const encodedNoteName = encodeURIComponent(noteName);
 		const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
 
-		const response = await fetch(url);
+		const response = await this.fetchWithTimeout(url);
 		return await response.json();
 	}
 
@@ -211,6 +219,19 @@ export default class MyPlugin extends Plugin {
 			default:
 				return ['кого-то', 'кому-то'];
 		}
+	}
+
+	private async fetchWithTimeout(resource: string, {timeout = 15000, ...options} = {}) {
+	  const controller = new AbortController();
+	  const id = setTimeout(() => controller.abort(), timeout);
+
+	  const response = await fetch(resource, {
+	    ...options,
+	    signal: controller.signal
+	  });
+	  clearTimeout(id);
+
+	  return response;
 	}
 }
 

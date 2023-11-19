@@ -157,12 +157,16 @@ export default class MyPlugin extends Plugin {
 	}
 
 	// Make an HTTP request to fetch the inflections
-	private async getInflections(noteName: string, {includePlural}: any) {
+	private async getInflections(phrase: string, {includePlural}: any) {
 		// return this.getInflectionsStub(noteName)
 
 		// Construct the URL to fetch inflections
-		const responseJson = await this.httpGetMorpher(noteName);
-		// const responseJson = await this.httpGetMorpherStub(noteName);
+		const responseJson = await this.httpGetMorpher(phrase);
+		// const responseJson = await this.httpGetMorpherStub(phrase);
+		if (responseJson["message"]) {
+			new Notice(`Could not get inflections for ${phrase}: ${responseJson["message"]}`);
+			return []
+		}
 		const inflectionsData = [
 			responseJson,
 			(includePlural ? responseJson["множественное"] : null),
@@ -185,7 +189,7 @@ export default class MyPlugin extends Plugin {
 		return await response.json();
 	}
 
-	private async httpGetMorpherStub(noteName: string) {
+	private async httpGetMorpherStub(noteName: string) : Promise<any> {
 		return Promise.resolve({
 		  "Р": "стола",
 		  "Д": "столу",

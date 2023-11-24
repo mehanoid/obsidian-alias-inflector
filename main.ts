@@ -8,12 +8,16 @@ import {
 } from 'obsidian';
 import { Settings, DEFAULT_SETTINGS, AlInfSettingTab } from './src/settings';
 import AddAliasesModal from './src/add_aliases_modal';
+import { MorpherInflector, StubInflector, Inflector } from './src/inflector';
 
 export default class AlInfPlugin extends Plugin {
 	settings: Settings;
 	frontMatterRegex = /^---+\n(?<frontmatter>(?:.|\n)*)---+/um;
+	inflector: Inflector
 
 	async onload() {
+		this.inflector = new MorpherInflector();
+		// this.inflector = new StubInflector();
 		await this.loadSettings();
 
 		this.addCommand({
@@ -89,7 +93,7 @@ export default class AlInfPlugin extends Plugin {
 
 		for (const alias of originalNames) {
 			if (!inflections.includes(alias)) {
-				const aliasInflections = await this.getInflections(alias, options);
+				const aliasInflections = await this.inflector.getInflections(alias, options);
 				inflectionGroups = {
 					...inflectionGroups,
 					[alias]: aliasInflections,
@@ -140,87 +144,5 @@ export default class AlInfPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	// Make an HTTP request to fetch the inflections
-	private async getInflections(phrase: string, {includePlural}: any) {
-		// return this.getInflectionsStub(noteName)
-
-		// Construct the URL to fetch inflections
-		const responseJson = await this.httpGetMorpher(phrase);
-		// const responseJson = await this.httpGetMorpherStub(phrase);
-		if (responseJson["message"]) {
-			new Notice(`Could not get inflections for ${phrase}: ${responseJson["message"]}`);
-			return []
-		}
-		const inflectionsData = [
-			responseJson,
-			(includePlural ? responseJson["множественное"] : null),
-		]
-
-		// Extract the relevant inflections from the response
-		const inflections =
-			inflectionsData
-				.filter(v => !!v)
-				.map(json => this.extractStringValues(json))
-				.flat()
-		return [...new Set(inflections)];
-	}
-
-	private async httpGetMorpher(noteName: string) {
-		const encodedNoteName = encodeURIComponent(noteName);
-		const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
-
-		const response = await this.fetchWithTimeout(url);
-		return await response.json();
-	}
-
-	private async httpGetMorpherStub(noteName: string) : Promise<any> {
-		return Promise.resolve({
-		  "Р": "стола",
-		  "Д": "столу",
-		  "В": "стол",
-		  "Т": "столом",
-		  "П": "столе",
-		  "множественное": {
-		    "И": "столы",
-		    "Р": "столов",
-		    "Д": "столам",
-		    "В": "столы",
-		    "Т": "столами",
-		    "П": "столах"
-		  }
-		})
-	}
-
-	private extractStringValues(json: any): string[] {
-		if (!json) return [];
-		return Object.values(json).filter(value => typeof value === 'string') as string[];
-	}
-
-	private getInflectionsStub(noteName: string) {
-		switch (noteName) {
-			case "Василий Афанасьевич Пупкин":
-				return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];
-			case "Вася":
-				return ['Васи', 'Васе'];
-			case "стол":
-				return ['стола', 'столу'];
-			default:
-				return ['кого-то', 'кому-то'];
-		}
-	}
-
-	private async fetchWithTimeout(resource: string, {timeout = 15000, ...options} = {}) {
-	  const controller = new AbortController();
-	  const id = setTimeout(() => controller.abort(), timeout);
-
-	  const response = await fetch(resource, {
-	    ...options,
-	    signal: controller.signal
-	  });
-	  clearTimeout(id);
-
-	  return response;
 	}
 }

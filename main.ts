@@ -29,26 +29,54 @@ export default class AlInfPlugin extends Plugin {
 					return;
 				}
 
-				const modal = new AddAliasesModal(this.app);
+				let fileContent = await this.app.vault.read(file);
+				let frontMatterData = this.parseFrontMatter(fileContent);
+				let includePlural = true;
+				let inflectFilename = true;
+
+
+				if ("alinf-inflect-file-name" in frontMatterData) {
+					if (frontMatterData["alinf-inflect-file-name"] === false) {
+						inflectFilename = false;
+					}
+				}
+
+				if ("alinf-include-plural" in frontMatterData) {
+					if (frontMatterData["alinf-include-plural"] === false) {
+						includePlural = false;
+					}
+				}
+
+				const modal = new AddAliasesModal(this.app, {
+					includePluralDefault: includePlural,
+					inflectFilenameDefault: inflectFilename,
+				});
 				modal.open();
 
-				const {includePlural} = await modal.results;
+				({inflectFilename, includePlural} = await modal.results);
 
 				// Execute your command
 				const noteName = file.basename; // Get the name of the current note
 
 				try {
-					const fileContent = await this.app.vault.read(file);
-					const frontMatterData = this.parseFrontMatter(fileContent);
+					fileContent = await this.app.vault.read(file);
+					frontMatterData = this.parseFrontMatter(fileContent);
 
+					const aliases = parseFrontMatterAliases(frontMatterData) || [];
+					if (!("alinf-inflectable-aliases" in frontMatterData) && aliases.length) {
+						frontMatterData["alinf-inflectable-aliases"] = aliases
+					}
 					// Updating aliases in frontMatterData
-					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {includePlural});
-					// frontMatterData.inflected = true;
+					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {
+						includePlural, inflectFilename
+					});
+					frontMatterData["alinf-include-plural"] = includePlural;
+					frontMatterData["alinf-inflect-file-name"] = inflectFilename;
 
 					const wasUpdated = await this.saveFrontMatter(file, fileContent, frontMatterData);
 
 					// Trigger the necessary workspace actions
-					await this.app.workspace.trigger('file-menu:sync-vault');
+					this.app.workspace.trigger('file-menu:sync-vault');
 
 					if (wasUpdated) {
 						new Notice('Aliases updated');
@@ -87,9 +115,21 @@ export default class AlInfPlugin extends Plugin {
 	private async getUpdatedAliases(noteName: string, frontMatterData: any, options: any) {
 		let inflectionGroups: { [key: string]: string[] } = {};
 		const inflections: string[] = [];
-		// Get the array of existing aliases from the frontmatter data
-		const originalAliases = parseFrontMatterAliases(frontMatterData) || [];
-		const originalNames = [noteName, ...originalAliases]
+
+		let originalNames: string[] = [];
+
+		if (options.inflectFilename) {
+			originalNames.push(noteName);
+		}
+
+		if ("alinf-inflectable-aliases" in frontMatterData) {
+			// If the front matter contains alinf-inflectable-aliases, then use these names
+			originalNames = originalNames.concat(frontMatterData["alinf-inflectable-aliases"] || []);
+		}
+		else if ("aliases" in frontMatterData) {
+			// If the front matter contains aliases, then use these names
+			originalNames = originalNames.concat(parseFrontMatterAliases(frontMatterData) || []);
+		}
 
 		for (const alias of originalNames) {
 			if (!inflections.includes(alias)) {

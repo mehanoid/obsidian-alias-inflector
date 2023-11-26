@@ -16,9 +16,8 @@ export default class AlInfPlugin extends Plugin {
 	inflector: Inflector
 
 	async onload() {
-		this.inflector = new MorpherInflector();
-		// this.inflector = new StubInflector();
 		await this.loadSettings();
+		this.setInflector();
 
 		this.addCommand({
 			id: 'add-aliases-with-inflections',
@@ -107,6 +106,16 @@ export default class AlInfPlugin extends Plugin {
 		// this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
+	private setInflector() {
+		switch (this.settings.inflector) {
+			case 'morpher':
+				this.inflector = new MorpherInflector();
+				break;
+			case 'stub':
+				this.inflector = new StubInflector();
+		}
+	}
+
 	private parseFrontMatter(fileContent: string) {
 		// Retrieving the YAML frontmatter block
 		const frontMatterMatch = this.frontMatterRegex.exec(fileContent);
@@ -187,6 +196,7 @@ export default class AlInfPlugin extends Plugin {
 	}
 
 	async saveSettings() {
+		this.setInflector();
 		await this.saveData(this.settings);
 	}
 }

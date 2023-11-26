@@ -1,17 +1,19 @@
-export interface Settings {
-	mySetting: string;
-}
-
-export const DEFAULT_SETTINGS: Settings = {
-	mySetting: 'default'
-}
-
 import {
 	App,
 	PluginSettingTab,
 	Setting
 } from 'obsidian';
 import type AlInfPlugin from '../main.js';
+
+export interface Settings {
+	inflector: string;
+	debug: boolean;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+	inflector: 'morpher',
+	debug: false
+}
 
 export class AlInfSettingTab extends PluginSettingTab {
 	plugin: AlInfPlugin;
@@ -26,18 +28,31 @@ export class AlInfSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
+		containerEl.createEl('h2', {text: 'Alias Inflector'});
+
+		// Default options - always available
+		let options = [
+			{key: 'morpher', display: 'Morpher'}
+		];
+
+		// In Debug mode, add additional options
+		if (this.plugin.settings.debug) {
+			options.push({key: 'stub', display: 'Stub (for debugging)'});
+		}
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName('Inflector')
+			.setDesc('Service used for fetching inflections')
+			.addDropdown(dropdown => {
+				options.forEach(option => {
+					dropdown.addOption(option.key, option.display);
+				});
+				dropdown
+					.setValue(this.plugin.settings.inflector)
+					.onChange(async (value) => {
+						this.plugin.settings.inflector = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }

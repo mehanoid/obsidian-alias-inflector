@@ -155,8 +155,8 @@ export default class AlInfPlugin extends Plugin {
 			}
 		}
 
-		let nominativeNames = Object.keys(inflectionGroups).slice(1);
-		let inflectedNames = Object.values(inflectionGroups).flat();
+		const nominativeNames = Object.keys(inflectionGroups).slice(1);
+		const inflectedNames = Object.values(inflectionGroups).flat();
 		return this.getUniqueValues([...nominativeNames, ...inflectedNames].filter(a => a !== noteName));
 	}
 
@@ -187,9 +187,9 @@ export default class AlInfPlugin extends Plugin {
 		return fileContent !== updatedFileContent
 	}
 
-	onunload() {
-
-	}
+	// onunload() {
+	//
+	// }
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

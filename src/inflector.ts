@@ -50,7 +50,7 @@ export class MorpherInflector extends Inflector {
 }
 
 export class StubInflector extends Inflector {
-	async getInflections(phrase: string, options: any): Promise<string[]> {
+	async getInflections(phrase: string, _options: any): Promise<string[]> {
 		switch (phrase) {
 			case "Василий Афанасьевич Пупкин":
 				return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];

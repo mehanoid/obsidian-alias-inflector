@@ -14,31 +14,31 @@ export default class AddAliasesModal extends Modal {
 	}
 
 	onOpen() {
-		let {contentEl} = this;
+		const {contentEl} = this;
 
 		contentEl.empty();
 
-		let formEl = contentEl.createEl('form');
+		const formEl = contentEl.createEl('form');
 
-		let inflectDivEl = formEl.createEl('div', { cls: 'setting-item' });
-		let inflectCheckboxLabel = inflectDivEl.createEl('label');
-		let inflectCheckbox = this.inflectFilenameDefault
+		const inflectDivEl = formEl.createEl('div', { cls: 'setting-item' });
+		const inflectCheckboxLabel = inflectDivEl.createEl('label');
+		const inflectCheckbox = this.inflectFilenameDefault
 			? inflectCheckboxLabel.createEl('input', { attr: { type: 'checkbox', checked: true } })
 			: inflectCheckboxLabel.createEl('input', { attr: { type: 'checkbox' } });
 		inflectCheckboxLabel.appendText(' Inflect file name');
 
-		let divEl = formEl.createEl('div', { cls: 'setting-item' });
-		let pluralLabel = divEl.createEl('label');
-		let pluralCheckbox = this.includePluralDefault
+		const divEl = formEl.createEl('div', { cls: 'setting-item' });
+		const pluralLabel = divEl.createEl('label');
+		const pluralCheckbox = this.includePluralDefault
 			? pluralLabel.createEl('input', { attr: { type: 'checkbox', checked: true } })
 			: pluralLabel.createEl('input', { attr: { type: 'checkbox' } });
 		pluralLabel.appendText(' Plural');
 
 		// Create setting-item wrapper div
-		let buttonWrapper = formEl.createEl('div', { cls: 'setting-item' });
+		const buttonWrapper = formEl.createEl('div', { cls: 'setting-item' });
 
 		// Create button inside the wrapper
-		let okButton = buttonWrapper.createEl('button', { text: 'OK', cls: 'mod-cta' });
+		const okButton = buttonWrapper.createEl('button', { text: 'OK', cls: 'mod-cta' });
 		okButton.addEventListener('click', (e) => {
 			e.preventDefault();
 			this.resolver({ includePlural: pluralCheckbox.checked, inflectFilename: inflectCheckbox.checked });
@@ -47,7 +47,7 @@ export default class AddAliasesModal extends Modal {
 	}
 
 	onClose() {
-		let {contentEl} = this;
+		const {contentEl} = this;
 		contentEl.empty();
 	}
 }

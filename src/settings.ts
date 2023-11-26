@@ -31,7 +31,7 @@ export class AlInfSettingTab extends PluginSettingTab {
 		containerEl.createEl('h2', {text: 'Alias Inflector'});
 
 		// Default options - always available
-		let options = [
+		const options = [
 			{key: 'morpher', display: 'Morpher'}
 		];
 

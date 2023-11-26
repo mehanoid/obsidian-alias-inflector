@@ -32,7 +32,7 @@ export class AlInfSettingTab extends PluginSettingTab {
 
 		// Default options - always available
 		const options = [
-			{key: 'morpher', display: 'Morpher'}
+			{key: 'morpher', display: 'Morpher.ru'}
 		];
 
 		// In Debug mode, add additional options

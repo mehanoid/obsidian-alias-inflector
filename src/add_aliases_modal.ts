@@ -32,7 +32,7 @@ export default class AddAliasesModal extends Modal {
 		const pluralCheckbox = this.includePluralDefault
 			? pluralLabel.createEl('input', { attr: { type: 'checkbox', checked: true } })
 			: pluralLabel.createEl('input', { attr: { type: 'checkbox' } });
-		pluralLabel.appendText(' Plural');
+		pluralLabel.appendText(' Include plural');
 
 		// Create setting-item wrapper div
 		const buttonWrapper = formEl.createEl('div', { cls: 'setting-item' });

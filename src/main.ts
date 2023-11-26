@@ -6,9 +6,9 @@ import {
 	stringifyYaml,
 	TFile
 } from 'obsidian';
-import { Settings, DEFAULT_SETTINGS, AlInfSettingTab } from './src/settings';
-import AddAliasesModal from './src/add_aliases_modal';
-import { MorpherInflector, StubInflector, Inflector } from './src/inflector';
+import { Settings, DEFAULT_SETTINGS, AlInfSettingTab } from './settings';
+import AddAliasesModal from './add_aliases_modal';
+import { MorpherInflector, StubInflector, Inflector } from './inflector';
 
 export default class AlInfPlugin extends Plugin {
 	settings: Settings;

@@ -3,7 +3,7 @@ import {
 	PluginSettingTab,
 	Setting
 } from 'obsidian';
-import type AlInfPlugin from '../main.js';
+import type AlInfPlugin from './main.js';
 
 export interface Settings {
 	inflector: string;

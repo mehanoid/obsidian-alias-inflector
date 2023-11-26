@@ -1,14 +1,13 @@
-import {Notice } from 'obsidian';
-
-export interface Inflector {
-	getInflections(phrase: string, options: any): Promise<string[]>;
+export abstract class Inflector {
+	public errors: string[] = [];
+	abstract getInflections(phrase: string, options: any): Promise<string[]>;
 }
 
-export class MorpherInflector implements Inflector {
+export class MorpherInflector extends Inflector {
 	async getInflections(phrase: string, {includePlural}: any) {
 		const responseJson = await this.httpGetMorpher(phrase);
 		if (responseJson["message"]) {
-			new Notice(`Could not get inflections for ${phrase}: ${responseJson["message"]}`);
+			this.errors.push(`Could not get inflections for "${phrase}": ${responseJson["message"]}`);
 			return []
 		}
 		const inflectionsData = [
@@ -32,24 +31,6 @@ export class MorpherInflector implements Inflector {
 		return await response.json();
 	}
 
-	private async httpGetMorpherStub(noteName: string): Promise<any> {
-		return Promise.resolve({
-			"Р": "стола",
-			"Д": "столу",
-			"В": "стол",
-			"Т": "столом",
-			"П": "столе",
-			"множественное": {
-				"И": "столы",
-				"Р": "столов",
-				"Д": "столам",
-				"В": "столы",
-				"Т": "столами",
-				"П": "столах"
-			}
-		})
-	}
-
 	private async fetchWithTimeout(resource: string, options = { timeout: 15000 }) {
 		const controller = new AbortController();
 		const id = setTimeout(() => controller.abort(), options.timeout);
@@ -68,7 +49,7 @@ export class MorpherInflector implements Inflector {
 	}
 }
 
-export class StubInflector implements Inflector {
+export class StubInflector extends Inflector {
 	async getInflections(phrase: string, options: any): Promise<string[]> {
 		switch (phrase) {
 			case "Василий Афанасьевич Пупкин":

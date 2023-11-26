@@ -70,6 +70,10 @@ export default class AlInfPlugin extends Plugin {
 					frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {
 						includePlural, inflectFilename
 					});
+					if (this.inflector.errors.length) {
+						new Notice(this.inflector.errors.join('\n\n'))
+						this.inflector.errors = []
+					}
 					frontMatterData["alinf-include-plural"] = includePlural;
 					frontMatterData["alinf-inflect-file-name"] = inflectFilename;
 

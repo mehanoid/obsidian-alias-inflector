@@ -22,8 +22,8 @@ export default class AlInfPlugin extends Plugin {
 		this.addCommand({
 			id: 'add-aliases-with-inflections',
 			name: 'Add aliases with inflections',
-			editorCallback: async (editor, view) => {
-				const file = view.file;
+			callback: async () => {
+				const file = this.app.workspace.getActiveFile()
 				if (!file) {
 					return;
 				}

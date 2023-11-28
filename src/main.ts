@@ -30,8 +30,8 @@ export default class AlInfPlugin extends Plugin {
 
 				let fileContent = await this.app.vault.read(file);
 				let frontMatterData = this.parseFrontMatter(fileContent);
-				let includePlural = true;
-				let inflectFilename = true;
+				let includePlural = this.settings.includePlural;
+				let inflectFilename = this.settings.inflectFilename;
 
 
 				if ("alinf-inflect-file-name" in frontMatterData) {
@@ -46,15 +46,16 @@ export default class AlInfPlugin extends Plugin {
 					}
 				}
 
-				const modal = new AddAliasesModal(this.app, {
-					includePluralDefault: includePlural,
-					inflectFilenameDefault: inflectFilename,
-				});
-				modal.open();
+				if (this.settings.showInflectionModal) {
+					const modal = new AddAliasesModal(this.app, {
+						includePluralDefault: includePlural,
+						inflectFilenameDefault: inflectFilename,
+					});
+					modal.open();
 
-				({inflectFilename, includePlural} = await modal.results);
+					({inflectFilename, includePlural} = await modal.results);
+				}
 
-				// Execute your command
 				const noteName = file.basename; // Get the name of the current note
 
 				try {

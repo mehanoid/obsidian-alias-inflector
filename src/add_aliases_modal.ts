@@ -1,15 +1,14 @@
 import {App, Modal} from 'obsidian';
+import InflectionOptions from "./inflection_options";
 
 export default class AddAliasesModal extends Modal {
   results: Promise<{ includePlural: boolean, inflectFilename: boolean }>;
   resolver: (value: { includePlural: boolean, inflectFilename: boolean }) => void;
-  includePluralDefault: boolean;
-  inflectFilenameDefault: boolean;
+  defaultOptions: InflectionOptions;
 
-  constructor(app: App, {inflectFilenameDefault = true, includePluralDefault = true} = {}) {
+  constructor(app: App, defaultOptions: InflectionOptions) {
     super(app);
-    this.inflectFilenameDefault = inflectFilenameDefault;
-    this.includePluralDefault = includePluralDefault;
+    this.defaultOptions = defaultOptions;
     this.results = new Promise((resolve) => this.resolver = resolve);
   }
 
@@ -22,14 +21,14 @@ export default class AddAliasesModal extends Modal {
 
     const inflectDivEl = formEl.createEl('div', {cls: 'setting-item'});
     const inflectCheckboxLabel = inflectDivEl.createEl('label');
-    const inflectCheckbox = this.inflectFilenameDefault
+    const inflectCheckbox = this.defaultOptions.inflectFilename
       ? inflectCheckboxLabel.createEl('input', {attr: {type: 'checkbox', checked: true}})
       : inflectCheckboxLabel.createEl('input', {attr: {type: 'checkbox'}});
     inflectCheckboxLabel.appendText(' Inflect file name');
 
     const divEl = formEl.createEl('div', {cls: 'setting-item'});
     const pluralLabel = divEl.createEl('label');
-    const pluralCheckbox = this.includePluralDefault
+    const pluralCheckbox = this.defaultOptions.includePlural
       ? pluralLabel.createEl('input', {attr: {type: 'checkbox', checked: true}})
       : pluralLabel.createEl('input', {attr: {type: 'checkbox'}});
     pluralLabel.appendText(' Include plural');

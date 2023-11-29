@@ -1,5 +1,6 @@
 import {Notice, parseFrontMatterAliases, Plugin, TFile} from 'obsidian';
 import {AlInfSettingTab, DEFAULT_SETTINGS, Settings} from './settings';
+import InflectionOptions from "./inflection_options";
 import AddAliasesModal from './add_aliases_modal';
 import {Inflector, MorpherInflector, StubInflector} from './inflector';
 
@@ -37,47 +38,41 @@ export default class AlInfPlugin extends Plugin {
     }
 
     const frontMatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
-    let {includePlural, inflectFilename} = this.loadSettingsFromFrontMatter(frontMatter);
+    let options = this.loadInflectionOptions(frontMatter);
 
     if (this.settings.showInflectionModal) {
-      const modal = new AddAliasesModal(this.app, {
-        includePluralDefault: includePlural,
-        inflectFilenameDefault: inflectFilename,
-      });
+      const modal = new AddAliasesModal(this.app, options);
       modal.open();
-      ({inflectFilename, includePlural} = await modal.results);
+      options = await modal.results;
     }
-    await this.updateAliases(file, frontMatter, includePlural, inflectFilename);
+    await this.updateAliases(file, frontMatter, options);
     this.app.workspace.trigger('file-menu:sync-vault');
   }
 
-  private loadSettingsFromFrontMatter(frontMatterData: any) {
+  private loadInflectionOptions(frontMatter: any) : InflectionOptions {
     let includePlural = this.settings.includePlural;
     let inflectFilename = this.settings.inflectFilename;
 
-    if ("alinf-inflect-file-name" in frontMatterData) {
-      inflectFilename = frontMatterData["alinf-inflect-file-name"];
+    if ("alinf-inflect-file-name" in frontMatter) {
+      inflectFilename = frontMatter["alinf-inflect-file-name"];
     }
 
-    if ("alinf-include-plural" in frontMatterData) {
-      includePlural = frontMatterData["alinf-include-plural"];
+    if ("alinf-include-plural" in frontMatter) {
+      includePlural = frontMatter["alinf-include-plural"];
     }
 
     return {includePlural, inflectFilename};
   }
 
-  private async updateAliases(file: TFile, frontMatter: any,
-                              includePlural: boolean, inflectFilename: boolean) {
+  private async updateAliases(file: TFile, frontMatter: any, options: InflectionOptions) {
     try {
       const oldAliases = parseFrontMatterAliases(frontMatter) || [];
-      const newAliases = await this.buildNewAliases(file.basename, frontMatter, {
-        includePlural, inflectFilename
-      });
+      const newAliases = await this.buildNewAliases(file.basename, frontMatter, options);
 
       await this.app.fileManager.processFrontMatter(file, async (frontMatter) => {
         frontMatter.aliases = newAliases;
-        frontMatter["alinf-include-plural"] = includePlural;
-        frontMatter["alinf-inflect-file-name"] = inflectFilename;
+        frontMatter["alinf-include-plural"] = options.includePlural;
+        frontMatter["alinf-inflect-file-name"] = options.inflectFilename;
         if (!("alinf-inflectable-aliases" in frontMatter) && oldAliases.length) {
           frontMatter["alinf-inflectable-aliases"] = oldAliases
         }
@@ -107,7 +102,7 @@ export default class AlInfPlugin extends Plugin {
     }
   }
 
-  private async buildNewAliases(noteName: string, frontMatter: any, options: any) {
+  private async buildNewAliases(noteName: string, frontMatter: any, options: InflectionOptions) {
     let inflectionGroups: { [key: string]: string[] } = {};
     const inflections: string[] = [];
 

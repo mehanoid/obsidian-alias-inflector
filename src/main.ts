@@ -1,18 +1,10 @@
-import {
-  Notice,
-  parseFrontMatterAliases,
-  parseYaml,
-  Plugin,
-  stringifyYaml,
-  TFile
-} from 'obsidian';
-import {Settings, DEFAULT_SETTINGS, AlInfSettingTab} from './settings';
+import {Notice, parseFrontMatterAliases, Plugin, TFile} from 'obsidian';
+import {AlInfSettingTab, DEFAULT_SETTINGS, Settings} from './settings';
 import AddAliasesModal from './add_aliases_modal';
-import {MorpherInflector, StubInflector, Inflector} from './inflector';
+import {Inflector, MorpherInflector, StubInflector} from './inflector';
 
 export default class AlInfPlugin extends Plugin {
   settings: Settings;
-  frontMatterRegex = /^---+\n(?<frontmatter>(?:.|\n)*)---+/um;
   inflector: Inflector
 
   async onload() {
@@ -44,9 +36,8 @@ export default class AlInfPlugin extends Plugin {
       return;
     }
 
-    const fileContent = await this.app.vault.read(file);
-    const frontMatterData = this.parseFrontMatter(fileContent);
-    let {includePlural, inflectFilename} = this.loadSettingsFromFrontMatter(frontMatterData);
+    const frontMatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+    let {includePlural, inflectFilename} = this.loadSettingsFromFrontMatter(frontMatter);
 
     if (this.settings.showInflectionModal) {
       const modal = new AddAliasesModal(this.app, {
@@ -56,7 +47,7 @@ export default class AlInfPlugin extends Plugin {
       modal.open();
       ({inflectFilename, includePlural} = await modal.results);
     }
-    await this.updateAliases(file, fileContent, frontMatterData, includePlural, inflectFilename);
+    await this.updateAliases(file, frontMatter, includePlural, inflectFilename);
     this.app.workspace.trigger('file-menu:sync-vault');
   }
 
@@ -75,42 +66,29 @@ export default class AlInfPlugin extends Plugin {
     return {includePlural, inflectFilename};
   }
 
-  private async updateAliases(file: TFile, fileContent: string, frontMatterData: any,
+  private async updateAliases(file: TFile, frontMatter: any,
                               includePlural: boolean, inflectFilename: boolean) {
     try {
-      fileContent = await this.app.vault.read(file);
-      frontMatterData = this.parseFrontMatter(fileContent);
+      const oldAliases = parseFrontMatterAliases(frontMatter) || [];
+      const newAliases = await this.buildNewAliases(file.basename, frontMatter, {
+        includePlural, inflectFilename
+      });
 
-      this.updateFrontMatterDataWithAliases(frontMatterData);
-      await this.updateFrontMatterDataWithInflections(frontMatterData, file.basename,
-        includePlural, inflectFilename);
+      await this.app.fileManager.processFrontMatter(file, async (frontMatter) => {
+        frontMatter.aliases = newAliases;
+        frontMatter["alinf-include-plural"] = includePlural;
+        frontMatter["alinf-inflect-file-name"] = inflectFilename;
+        if (!("alinf-inflectable-aliases" in frontMatter) && oldAliases.length) {
+          frontMatter["alinf-inflectable-aliases"] = oldAliases
+        }
+      })
 
-
-      frontMatterData["alinf-include-plural"] = includePlural;
-      frontMatterData["alinf-inflect-file-name"] = inflectFilename;
-
-      const wasUpdated = await this.saveFrontMatter(file, fileContent, frontMatterData);
-      this.showNoticeOnUpdate(wasUpdated);
+      this.showNoticeOnUpdate(JSON.stringify(oldAliases) !== JSON.stringify(newAliases));
     } catch (error) {
       console.error('Error fetching inflections:', error);
       new Notice('Error fetching inflections');
     }
   }
-
-  private updateFrontMatterDataWithAliases(frontMatterData: any) {
-    const aliases = parseFrontMatterAliases(frontMatterData) || [];
-    if (!("alinf-inflectable-aliases" in frontMatterData) && aliases.length) {
-      frontMatterData["alinf-inflectable-aliases"] = aliases
-    }
-  }
-
-  private async updateFrontMatterDataWithInflections(frontMatterData: any, noteName: string,
-                                                     includePlural: boolean, inflectFilename: boolean) {
-    frontMatterData.aliases = await this.getUpdatedAliases(noteName, frontMatterData, {
-      includePlural, inflectFilename
-    });
-  }
-
   private showNoticeOnUpdate(wasUpdated: boolean) {
     if (wasUpdated) {
       new Notice('Aliases updated');
@@ -129,16 +107,7 @@ export default class AlInfPlugin extends Plugin {
     }
   }
 
-  private parseFrontMatter(fileContent: string) {
-    // Retrieving the YAML frontmatter block
-    const frontMatterMatch = this.frontMatterRegex.exec(fileContent);
-    const frontMatterContent = frontMatterMatch?.groups?.frontmatter || '';
-
-    // Parsing an existing YAML frontmatter
-    return parseYaml(frontMatterContent) || {};
-  }
-
-  private async getUpdatedAliases(noteName: string, frontMatterData: any, options: any) {
+  private async buildNewAliases(noteName: string, frontMatter: any, options: any) {
     let inflectionGroups: { [key: string]: string[] } = {};
     const inflections: string[] = [];
 
@@ -148,12 +117,12 @@ export default class AlInfPlugin extends Plugin {
       originalNames.push(noteName);
     }
 
-    if ("alinf-inflectable-aliases" in frontMatterData) {
+    if ("alinf-inflectable-aliases" in frontMatter) {
       // If the front matter contains alinf-inflectable-aliases, then use these names
-      originalNames = originalNames.concat(frontMatterData["alinf-inflectable-aliases"] || []);
-    } else if ("aliases" in frontMatterData) {
+      originalNames = originalNames.concat(frontMatter["alinf-inflectable-aliases"] || []);
+    } else if ("aliases" in frontMatter) {
       // If the front matter contains aliases, then use these names
-      originalNames = originalNames.concat(parseFrontMatterAliases(frontMatterData) || []);
+      originalNames = originalNames.concat(parseFrontMatterAliases(frontMatter) || []);
     }
 
     for (const alias of originalNames) {
@@ -179,29 +148,6 @@ export default class AlInfPlugin extends Plugin {
 
   private getUniqueValues(array: string[]): string[] {
     return array.filter((value, index, self) => self.indexOf(value) === index);
-  }
-
-  private async saveFrontMatter(file: TFile, fileContent: string, frontMatterData: any) {
-    // Convert the updated frontMatter data back to the YAML format
-    const updatedFrontMatterContent = stringifyYaml(frontMatterData);
-
-    // Generate the updated content of the file with the changed frontmatter
-    let updatedFileContent;
-    if (this.frontMatterRegex.exec(fileContent)) {
-      // Replace the existing frontmatter with the updated frontmatter content
-      updatedFileContent = fileContent.replace(
-        this.frontMatterRegex,
-        `---\n${updatedFrontMatterContent}---`
-      );
-    } else {
-      // Add a new frontmatter block at the beginning of the file
-      updatedFileContent = `---\n${updatedFrontMatterContent}---\n${fileContent}`;
-    }
-
-    // Save the updated file content
-    await this.app.vault.modify(file, updatedFileContent);
-    // Return true if any content was updated
-    return fileContent !== updatedFileContent
   }
 
   // onunload() {

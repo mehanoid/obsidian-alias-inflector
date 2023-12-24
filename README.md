@@ -32,3 +32,13 @@
 
 - Copy over `main.js`, `styles.css`, `manifest.json` to your
   vault `VaultFolder/.obsidian/plugins/obsidian-alias-inflector/`.
+
+## Development
+* Clone this repo.
+* Make sure your NodeJS is at least v16 (node --version).
+* npm i or yarn to install dependencies.
+* npm run dev to start compilation in watch mode.
+  
+## Tests and linters
+* run tests: `yarn run test` 
+* run linters: `yarn run lint` 

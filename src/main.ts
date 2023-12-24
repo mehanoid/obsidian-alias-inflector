@@ -135,8 +135,7 @@ export default class AlInfPlugin extends Plugin {
       new Notice(this.inflector.errors.join('\n\n'))
       this.inflector.errors = []
     }
-
-    const nominativeNames = Object.keys(inflectionGroups).slice(1);
+    const nominativeNames = Object.keys(inflectionGroups).filter(n => n !== noteName);
     const inflectedNames = Object.values(inflectionGroups).flat();
     return this.getUniqueValues([...nominativeNames, ...inflectedNames].filter(a => a !== noteName));
   }

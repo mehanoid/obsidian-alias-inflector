@@ -1,11 +1,10 @@
 {
-  "id": "obsidian-alias-inflector",
-  "name": "Alias Inflector",
-  "version": "1.1.0",
-  "minAppVersion": "0.15.0",
-  "description": "Adds all possible inflections as aliases with a single command",
-  "author": "Oleg Grigoriev",
-  "authorUrl": "https://github.com/mehanoid",
-  "isDesktopOnly": false
+	"id": "obsidian-alias-inflector",
+	"name": "Alias Inflector",
+	"version": "1.1.1",
+	"minAppVersion": "0.15.0",
+	"description": "Adds all possible inflections as aliases with a single command",
+	"author": "Oleg Grigoriev",
+	"authorUrl": "https://github.com/mehanoid",
+	"isDesktopOnly": false
 }
-

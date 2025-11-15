@@ -29,6 +29,12 @@ export class MorpherInflector extends Inflector {
     const url = `https://ws3.morpher.ru/russian/declension?format=json&s=${encodedNoteName}`;
 
     const response = await this.fetchWithTimeout(url);
+    // handle 496 code, otherwise fetch does not understand this status and does not read json
+    if (response.status === 496) {
+      return {
+        message: 'Не найдено русских слов'
+      }
+    }
     return await response.json();
   }
 

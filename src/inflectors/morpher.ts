@@ -1,8 +1,4 @@
-export abstract class Inflector {
-  public errors: string[] = [];
-
-  abstract getInflections(phrase: string, options: any): Promise<string[]>;
-}
+import {Inflector} from './base';
 
 export class MorpherInflector extends Inflector {
   async getInflections(phrase: string, {includePlural}: any) {
@@ -53,20 +49,5 @@ export class MorpherInflector extends Inflector {
   private extractStringValues(json: any): string[] {
     if (!json) return [];
     return Object.values(json).filter(value => typeof value === 'string') as string[];
-  }
-}
-
-export class StubInflector extends Inflector {
-  async getInflections(phrase: string, _options: any): Promise<string[]> {
-    switch (phrase) {
-      case "Василий Афанасьевич Пупкин":
-        return ['Василия Афанасьевича Пупкина', 'Василию Афанасьевичу Пупкину'];
-      case "Вася":
-        return ['Васи', 'Васе'];
-      case "стол":
-        return ['стола', 'столу'];
-      default:
-        return ['кого-то', 'кому-то'];
-    }
   }
 }

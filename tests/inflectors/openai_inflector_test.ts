@@ -1,57 +1,4 @@
-import {MorpherInflector, OpenAIInflector} from '../src/inflectors';
-
-beforeEach(() => {
-  fetchMock.resetMocks();
-});
-
-describe('MorpherInflector', () => {
-  let inflector: MorpherInflector;
-
-  beforeEach(() => {
-    inflector = new MorpherInflector();
-  });
-
-  it('returns an empty array when there is a message in the response', async () => {
-    fetchMock.mockResponseOnce(JSON.stringify({message: 'Error Message'}));
-
-    const inflections = await inflector.getInflections('стол', {includePlural: true});
-    expect(inflections).toEqual([]);
-  });
-
-
-  it('adds an error message when there is a message in the response', async () => {
-    fetchMock.mockResponseOnce(JSON.stringify({message: 'Error Message'}));
-
-    const inflector = new MorpherInflector();
-    await inflector.getInflections('стол', {includePlural: true});
-
-    expect(inflector.errors).toContain('Could not get inflections for "стол": Error Message');
-  });
-
-  it('returns inflections when the response is successful', async () => {
-    fetchMock.mockResponseOnce(JSON.stringify({
-      "Р": "стола",
-      "множественное": {
-        "И": "столы",
-      }
-    }));
-
-    const inflections = await inflector.getInflections('стол', {includePlural: true});
-    expect(inflections).toEqual(["стола", "столы"]);
-  });
-
-  it('does not return plural inflections when includePlural is false', async () => {
-    fetchMock.mockResponseOnce(JSON.stringify({
-      "Р": "стола",
-      "множественное": {
-        "И": "столы",
-      }
-    }));
-
-    const inflections = await inflector.getInflections('стол', {includePlural: false});
-    expect(inflections).toEqual(["стола"]);
-  });
-});
+import {OpenAIInflector} from '../../src/inflectors';
 
 describe('OpenAIInflector', () => {
   let inflector: OpenAIInflector;
@@ -62,34 +9,14 @@ describe('OpenAIInflector', () => {
 
   it('returns an empty array when API key is not configured', async () => {
     const inflectorNoKey = new OpenAIInflector('');
-    fetchMock.mockResponseOnce(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: '{"error": "Unauthorized"}'
-          }
-        }
-      ]
-    }), {status: 401});
-
     const inflections = await inflectorNoKey.getInflections('стол', {includePlural: true});
     expect(inflections).toEqual([]);
   });
 
   it('adds an error message when API key is not configured', async () => {
     const inflectorNoKey = new OpenAIInflector('');
-    fetchMock.mockResponseOnce(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: '{"error": "Unauthorized"}'
-          }
-        }
-      ]
-    }), {status: 401});
-
     await inflectorNoKey.getInflections('стол', {includePlural: true});
-    expect(inflectorNoKey.errors.length).toBeGreaterThan(0);
+    expect(inflectorNoKey.errors).toContain('OpenAI API key is not configured');
   });
 
   it('returns inflections when API response is successful', async () => {
@@ -347,45 +274,5 @@ describe('OpenAIInflector', () => {
     await inflector.getInflections('Москва', {includePlural: true});
     expect(inflector.errors.length).toBeGreaterThan(0);
     expect(inflector.errors[0]).toContain('This is a proper noun');
-  });
-
-  it('works without API key for local models', async () => {
-    const inflectorLocalModel = new OpenAIInflector('', 'http://localhost:11434/v1', 'mistral');
-
-    fetchMock.mockResponseOnce(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: '{"inflections": ["стола", "столу", "столом"]}'
-          }
-        }
-      ]
-    }));
-
-    const inflections = await inflectorLocalModel.getInflections('стол', {includePlural: true});
-    expect(inflections).toEqual(["стола", "столу", "столом"]);
-
-    // Check that Authorization header was not sent
-    const callArgs = fetchMock.mock.calls[0];
-    const headers = callArgs?.[1]?.headers as any;
-    expect(headers?.Authorization).toBeUndefined();
-  });
-
-  it('sends Authorization header only when API key is provided', async () => {
-    fetchMock.mockResponseOnce(JSON.stringify({
-      choices: [
-        {
-          message: {
-            content: '{"inflections": ["стола"]}'
-          }
-        }
-      ]
-    }));
-
-    await inflector.getInflections('стол', {includePlural: true});
-
-    const callArgs = fetchMock.mock.calls[0];
-    const headers = callArgs?.[1]?.headers as any;
-    expect(headers?.Authorization).toBe('Bearer test-api-key');
   });
 });

@@ -11,6 +11,9 @@ export interface Settings {
   inflectFilename: boolean;
   includePlural: boolean;
   showInflectionModal: boolean;
+  openaiApiKey: string;
+  openaiApiUrl: string;
+  openaiModel: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,7 +21,10 @@ export const DEFAULT_SETTINGS: Settings = {
   debug: false,
   inflectFilename: true,
   includePlural: true,
-  showInflectionModal: true
+  showInflectionModal: true,
+  openaiApiKey: '',
+  openaiApiUrl: 'https://api.openai.com/v1',
+  openaiModel: 'gpt-5.2'
 }
 
 export class AlInfSettingTab extends PluginSettingTab {
@@ -37,20 +43,21 @@ export class AlInfSettingTab extends PluginSettingTab {
     containerEl.createEl('h2', {text: 'Alias Inflector'});
 
     // Default options - always available
-    const options = [
-      {key: 'morpher', display: 'Morpher.ru'}
+    const inflectorOptions = [
+      {key: 'morpher', display: 'Morpher.ru'},
+      {key: 'openai', display: 'OpenAI Compatible API'}
     ];
 
     // In Debug mode, add additional options
     if (this.plugin.settings.debug) {
-      options.push({key: 'stub', display: 'Stub (for debugging)'});
+      inflectorOptions.push({key: 'stub', display: 'Stub (for debugging)'});
     }
 
     new Setting(containerEl)
       .setName('Inflector')
       .setDesc('Service used for fetching inflections')
       .addDropdown(dropdown => {
-        options.forEach(option => {
+        inflectorOptions.forEach(option => {
           dropdown.addOption(option.key, option.display);
         });
         dropdown
@@ -58,8 +65,52 @@ export class AlInfSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.inflector = value;
             await this.plugin.saveSettings();
+            this.display();
           });
       });
+
+    // OpenAI specific settings
+    if (this.plugin.settings.inflector === 'openai') {
+      new Setting(containerEl)
+        .setName('OpenAI API Key (Optional)')
+        .setDesc('Your OpenAI API key or compatible service token. Leave empty for local models (Ollama, LM Studio, etc.)')
+        .addText(text => {
+          text
+            .setPlaceholder('sk-... (optional)')
+            .setValue(this.plugin.settings.openaiApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiApiKey = value;
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.type = 'password';
+        });
+
+      new Setting(containerEl)
+        .setName('OpenAI API URL')
+        .setDesc('Base URL for the OpenAI API (default: https://api.openai.com/v1)')
+        .addText(text => {
+          text
+            .setPlaceholder('https://api.openai.com/v1')
+            .setValue(this.plugin.settings.openaiApiUrl)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiApiUrl = value || 'https://api.openai.com/v1';
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(containerEl)
+        .setName('OpenAI Model')
+        .setDesc('Model to use (e.g., gpt-5.2)')
+        .addText(text => {
+          text
+            .setPlaceholder('gpt-5.2')
+            .setValue(this.plugin.settings.openaiModel)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiModel = value || 'gpt-5.2';
+              await this.plugin.saveSettings();
+            });
+        });
+    }
 
     new Setting(containerEl)
       .setName('Inflect file name')

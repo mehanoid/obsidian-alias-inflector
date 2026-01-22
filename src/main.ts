@@ -2,7 +2,7 @@ import {Notice, parseFrontMatterAliases, Plugin, TFile} from 'obsidian';
 import {AlInfSettingTab, DEFAULT_SETTINGS, Settings} from './settings';
 import InflectionOptions from "./inflection_options";
 import AddAliasesModal from './add_aliases_modal';
-import {Inflector, MorpherInflector, StubInflector} from './inflector';
+import {Inflector, MorpherInflector, StubInflector, OpenAIInflector} from './inflectors';
 
 export default class AlInfPlugin extends Plugin {
   settings: Settings;
@@ -81,7 +81,7 @@ export default class AlInfPlugin extends Plugin {
       this.showNoticeOnUpdate(JSON.stringify(oldAliases) !== JSON.stringify(newAliases));
     } catch (error) {
       console.error('Error fetching inflections:', error);
-      new Notice('Error fetching inflections');
+      new Notice('Error fetching inflections', 0);
     }
   }
   private showNoticeOnUpdate(wasUpdated: boolean) {
@@ -96,6 +96,13 @@ export default class AlInfPlugin extends Plugin {
     switch (this.settings.inflector) {
       case 'morpher':
         this.inflector = new MorpherInflector();
+        break;
+      case 'openai':
+        this.inflector = new OpenAIInflector(
+          this.settings.openaiApiKey,
+          this.settings.openaiApiUrl,
+          this.settings.openaiModel
+        );
         break;
       case 'stub':
         this.inflector = new StubInflector();
@@ -132,7 +139,7 @@ export default class AlInfPlugin extends Plugin {
     }
 
     if (this.inflector.errors.length) {
-      new Notice(this.inflector.errors.join('\n\n'))
+      new Notice(this.inflector.errors.join('\n\n'), 0)
       this.inflector.errors = []
     }
     const nominativeNames = Object.keys(inflectionGroups).filter(n => n !== noteName);
@@ -143,8 +150,4 @@ export default class AlInfPlugin extends Plugin {
   private getUniqueValues(array: string[]): string[] {
     return array.filter((value, index, self) => self.indexOf(value) === index);
   }
-
-  // onunload() {
-  //
-  // }
 }
